@@ -9,12 +9,16 @@ import jwt
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+# Set a strong secret key
+app.secret_key = os.environ.get('SECRET_KEY', 'mpesa_stk_secret_key_2024_secure')
+# Disable debug in production
+app.config['DEBUG'] = False
+# Session configuration
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-jwt-secret-key')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'mpesa_stk_jwt_secret_2024_secure')
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -45,8 +49,8 @@ def login():
         return redirect(url_for('index'))
     
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
         
         if not username or not password:
             flash('Please provide both username and password')
@@ -273,4 +277,6 @@ def not_found_error(error):
     return render_template('error.html', error="The requested page was not found."), 404
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    # Only enable debug in development
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug_mode) 
