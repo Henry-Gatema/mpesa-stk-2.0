@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect
 import json
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -16,6 +17,9 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-jwt-secret-key')
 app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -46,28 +50,32 @@ def login():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        if not username or not password:
-            flash('Please provide both username and password')
-            return render_template('login.html')
-        
         try:
-            with open('users.json', 'r') as f:
-                users = json.load(f)
-                user_data = next((u for u in users if u['username'] == username), None)
-                
-                if user_data and check_password_hash(user_data['password_hash'], password):
-                    user = User(user_data['id'], user_data['username'], user_data['password_hash'])
-                    login_user(user, remember=True)
-                    session.permanent = True
-                    next_page = request.args.get('next')
-                    return redirect(next_page or url_for('index'))
-                else:
-                    flash('Invalid username or password')
-        except FileNotFoundError:
-            flash('No users found')
+            username = request.form.get('username')
+            password = request.form.get('password')
+            
+            if not username or not password:
+                flash('Please provide both username and password')
+                return render_template('login.html')
+            
+            try:
+                with open('users.json', 'r') as f:
+                    users = json.load(f)
+                    user_data = next((u for u in users if u['username'] == username), None)
+                    
+                    if user_data and check_password_hash(user_data['password_hash'], password):
+                        user = User(user_data['id'], user_data['username'], user_data['password_hash'])
+                        login_user(user, remember=True)
+                        session.permanent = True
+                        next_page = request.args.get('next')
+                        return redirect(next_page or url_for('index'))
+                    else:
+                        flash('Invalid username or password')
+            except FileNotFoundError:
+                flash('No users found')
+        except Exception as e:
+            app.logger.error(f"Login error: {str(e)}")
+            flash('An error occurred during login. Please try again.')
             
     return render_template('login.html')
 
@@ -260,6 +268,15 @@ def api_logs(current_user):
         'total_payments': total_payments,
         'num_transactions': num_transactions
     })
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f'Server Error: {error}')
+    return render_template('error.html', error="An internal server error occurred. Please try again later."), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('error.html', error="The requested page was not found."), 404
 
 if __name__ == '__main__':
     app.run(debug=True) 
