@@ -6,14 +6,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from mpesa import lipa_na_mpesa
 from functools import wraps
 import jwt
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Change this to a secure secret key
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=2)
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')  # Use environment variable
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Increased session time
+app.config['SESSION_COOKIE_SECURE'] = True  # Enable secure cookies
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key'  # Change this to a secure key
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-jwt-secret-key')
+app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -44,8 +46,12 @@ def login():
         return redirect(url_for('index'))
         
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not username or not password:
+            flash('Please provide both username and password')
+            return render_template('login.html')
         
         try:
             with open('users.json', 'r') as f:
