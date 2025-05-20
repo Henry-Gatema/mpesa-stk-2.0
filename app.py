@@ -13,13 +13,16 @@ import jwt
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')  # Use environment variable
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Increased session time
-app.config['SESSION_COOKIE_SECURE'] = True  # Enable secure cookies
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-jwt-secret-key')
-app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -57,41 +60,34 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     
-    form = LoginForm()
-    
     if request.method == 'POST':
-        if form.validate_on_submit():
-            username = form.username.data
-            password = form.password.data
-            
-            try:
-                with open('users.json', 'r') as f:
-                    users = json.load(f)
-                    user_data = next((u for u in users if u['username'] == username), None)
-                    
-                    if user_data and check_password_hash(user_data['password_hash'], password):
-                        user = User(user_data['id'], user_data['username'], user_data['password_hash'])
-                        login_user(user, remember=True)
-                        session.permanent = True
-                        next_page = request.args.get('next')
-                        
-                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                            return jsonify({'redirect': url_for('index')})
-                        return redirect(next_page or url_for('index'))
-                    else:
-                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                            return jsonify({'error': 'Invalid username or password'}), 401
-                        flash('Invalid username or password')
-            except FileNotFoundError:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({'error': 'No users found'}), 500
-                flash('No users found')
-        else:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'error': 'Please provide both username and password'}), 400
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if not username or not password:
             flash('Please provide both username and password')
+            return render_template('login.html')
+        
+        try:
+            with open('users.json', 'r') as f:
+                users = json.load(f)
+                user_data = next((u for u in users if u['username'] == username), None)
+                
+                if user_data and check_password_hash(user_data['password_hash'], password):
+                    user = User(user_data['id'], user_data['username'], user_data['password_hash'])
+                    login_user(user, remember=True)
+                    session.permanent = True
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('index'))
+                else:
+                    flash('Invalid username or password')
+        except FileNotFoundError:
+            flash('No users found')
+        except Exception as e:
+            app.logger.error(f"Login error: {str(e)}")
+            flash('An error occurred during login. Please try again.')
     
-    return render_template('login.html', form=form)
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
