@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField
+from wtforms.validators import DataRequired
 import json
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,6 +23,11 @@ app.config['WTF_CSRF_ENABLED'] = True  # Enable CSRF protection
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Login form
+class LoginForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -48,15 +56,13 @@ def load_user(user_id):
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-        
+    
+    form = LoginForm()
+    
     if request.method == 'POST':
-        try:
-            username = request.form.get('username')
-            password = request.form.get('password')
-            
-            if not username or not password:
-                flash('Please provide both username and password')
-                return render_template('login.html')
+        if form.validate_on_submit():
+            username = form.username.data
+            password = form.password.data
             
             try:
                 with open('users.json', 'r') as f:
@@ -68,16 +74,24 @@ def login():
                         login_user(user, remember=True)
                         session.permanent = True
                         next_page = request.args.get('next')
+                        
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'redirect': url_for('index')})
                         return redirect(next_page or url_for('index'))
                     else:
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({'error': 'Invalid username or password'}), 401
                         flash('Invalid username or password')
             except FileNotFoundError:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'error': 'No users found'}), 500
                 flash('No users found')
-        except Exception as e:
-            app.logger.error(f"Login error: {str(e)}")
-            flash('An error occurred during login. Please try again.')
-            
-    return render_template('login.html')
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Please provide both username and password'}), 400
+            flash('Please provide both username and password')
+    
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 @login_required

@@ -65,8 +65,8 @@
         {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('login') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <form method="POST" action="{{ url_for('login') }}" id="loginForm">
+        {{ form.csrf_token if form }}
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
             <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
@@ -78,4 +78,36 @@
         <button type="submit" class="btn btn-primary btn-login">Login</button>
     </form>
 </div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch("{{ url_for('login') }}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else {
+            return response.text().then(text => {
+                if (text.includes('Invalid username or password')) {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger';
+                    alert.textContent = 'Invalid username or password';
+                    document.querySelector('.login-container').insertBefore(alert, document.getElementById('loginForm'));
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+});
+</script>
 {% endblock %}
