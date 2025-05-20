@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transaction Logs</title>
+    <style>
+        body {
+            background-color: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #222;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transaction Logs</h1>
+
+    <p><strong>Total Payments:</strong> {{ total_payments }} KES</p>
+    <p><strong>Number of Transactions:</strong> {{ num_transactions }}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Amount</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.user }}</td>
+                <td>{{ log.name }}</td>
+                <td>{{ log.phone }}</td>
+                <td>{{ log.amount }}</td>
+                <td>{{ log.time }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

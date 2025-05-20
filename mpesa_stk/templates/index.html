@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>STK Push Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background-color: #111; color: white; font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 400px; margin: auto; background: #222; padding: 20px; border-radius: 8px; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; border: none; border-radius: 5px; }
+        input { background: #333; color: white; }
+        button { background: red; color: white; font-weight: bold; }
+        .flash { margin: 10px 0; padding: 10px; background: #333; border-left: 5px solid #0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>STK Push Payment</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <form method="POST" action="{{ url_for('stk_push') }}">
+            <input type="text" name="name" placeholder="Customer Name" required>
+            <input type="text" id="phone" name="phone" value="254" required pattern="2547[0-9]{8}" maxlength="12" placeholder="2547XXXXXXXX">
+            <input type="number" name="amount" placeholder="Amount" required>
+            <button type="submit">Send STK Push</button>
+        </form>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('view_logs') }}" style="display: inline-block; background: #ff4444; color: white; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">View Transaction Logs</a>
+    </div>
+
+    <script>
+      const phoneInput = document.getElementById("phone");
+      phoneInput.addEventListener("input", function () {
+        if (!this.value.startsWith("254")) {
+          this.value = "254";
+        }
+      });
+      phoneInput.addEventListener("keydown", function (e) {
+        if ((this.selectionStart <= 3 && (e.key === "Backspace" || e.key === "Delete")) || (this.selectionStart < 3 && e.key.length === 1)) {
+          e.preventDefault();
+        }
+      });
+    </script>
+</body>
+</html>
